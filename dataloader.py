@@ -1,266 +1,158 @@
-import sys
+import sys,os,time
 
 import numpy as np
 from skimage.io import imread
+import pandas as pd 
 
 import torch 
 from torchvision import transforms
-from torch.utils.data.dataset import IterableDataset
+from torch.utils.data import Dataset, DataLoader
 import albumentations as albu
 
-# ref: https://www.kaggle.com/paulorzp/run-length-encode-and-decode
-def rle_decode(mask_rle, shape=(768, 768)):
-    '''
-    mask_rle: run-length as string formated (start length)
-    shape: (height,width) of array to return 
-    Returns numpy array, 1 - mask, 0 - background
+from utils import rle_decode, get_mask, joint_transform
 
-    '''
-    s = mask_rle.split()
-    starts, lengths = [np.asarray(x, dtype=int)
-                       for x in (s[0:][::2], s[1:][::2])]
-    starts -= 1
-    ends = starts + lengths
-    img = np.zeros(shape[0]*shape[1], dtype=np.uint8)
-    for lo, hi in zip(starts, ends):
-        img[lo:hi] = 1
-    return img.reshape(shape).T  # Needed to align to RLE directions
+class AirbusShipDataset(Dataset):
 
-def get_mask(img_id, df):
-    shape = (768,768)
-    img = np.zeros(shape[0]*shape[1], dtype=np.uint8)
-    masks = df.loc[img_id]['EncodedPixels']
-    if(type(masks) == float): return img.reshape(shape)
-    if(type(masks) == str): masks = [masks]
-    for mask in masks:
-        s = mask.split()
-        for i in range(len(s)//2):
-            start = int(s[2*i]) - 1
-            length = int(s[2*i+1])
-            img[start:start+length] = 1
-    return img.reshape(shape).T
+    def __init__(self, fn, data_root_dir, transform=None):
+        df = pd.read_csv(fn)
+        
+        self.image_fns = [
+            os.path.join(data_root_dir, "train_v2/", fn)
+            for fn in df["0"].values
+        ]
 
+        self.mask_fns = [
+            os.path.join(data_root_dir, "train_v2_masks/", fn.replace(".jpg", ".png"))
+            for fn in df["0"].values
+        ]
 
-class StreamingGeospatialDataset(IterableDataset):
-    
-    def __init__(self, imagery_fns,masks_df, chip_size=768, num_chips_per_tile=1, image_transform=None, label_transform=None, nodata_check=None, verbose=False):
+        self.mask_id_fns = [
+            os.path.join(data_root_dir, "train_v2_mask_ids/", fn.replace(".jpg", ".png"))
+            for fn in df["0"].values
+        ]
+        
+        self.mask_exists = [
+            os.path.exists(fn)
+            for fn in self.mask_fns
+        ]
+        
+        self.transform = transform
 
-        self.fns = imagery_fns
-        self.masks_df = masks_df
+    def __len__(self):
+        return len(self.image_fns)
 
-        self.chip_size = chip_size
-        self.num_chips_per_tile = num_chips_per_tile
+    def __getitem__(self, idx):
 
-        self.image_transform = image_transform
-        self.label_transform = label_transform
-        self.nodata_check = nodata_check
-
-        self.verbose = verbose
-
-        if self.verbose:
-            print("Constructed StreamingGeospatialDataset")
-
-    def stream_tile_fns(self):
-        worker_info = torch.utils.data.get_worker_info()
-        if worker_info is None: # In this case we are not loading through a DataLoader with multiple workers
-            worker_id = 0
-            num_workers = 1
+        img_fn, mask_fn, mask_id_fn = self.image_fns[idx], self.mask_fns[idx], self.mask_id_fns[idx]
+        fn = os.path.basename(img_fn)
+        
+        
+        image = imread(img_fn)
+        if self.mask_exists[idx]:
+            mask = imread(mask_fn)
+            mask_id = imread(mask_id_fn)
         else:
-            worker_id = worker_info.id
-            num_workers = worker_info.num_workers
+            mask = np.zeros((768, 768), dtype=np.uint8)
+            mask_id = np.zeros((768, 768), dtype=np.uint8)
+        
+        #if self.transform:
+        #    sample = self.transform(sample)
 
-        # We only want to shuffle the order we traverse the files if we are the first worker (else, every worker will shuffle the files...)
-        if worker_id == 0:
-            np.random.shuffle(self.fns) # in place
-        # NOTE: A warning, when different workers are created they will all have the same numpy random seed, however will have different torch random seeds. If you want to use numpy random functions, seed appropriately.
-        #seed = torch.randint(low=0,high=2**32-1,size=(1,)).item()
-        #np.random.seed(seed) # when different workers spawn, they have the same numpy random seed...
-
-        if self.verbose:
-            print("Creating a filename stream for worker %d" % (worker_id))
-
-        # This logic splits up the list of filenames into `num_workers` chunks. Each worker will recieve ceil(num_filenames / num_workers) filenames to generate chips from. If the number of workers doesn't divide the number of filenames evenly then the last worker will have fewer filenames.
-        N = len(self.fns)
-        num_files_per_worker = int(np.ceil(N / num_workers))
-        lower_idx = worker_id * num_files_per_worker
-        upper_idx = min(N, (worker_id+1) * num_files_per_worker)
-        for idx in range(lower_idx, upper_idx):
-
-            img_fn = self.fns[idx]
-
-            if self.verbose:
-                print("Worker %d, yielding file %d" % (worker_id, idx))
-
-            yield (img_fn)
-
-    def stream_chips(self):
-        for img_fn in self.stream_tile_fns():
-            num_skipped_chips = 0
-
-            img_fp = imread(img_fn)
-            label = get_mask(img_fn, df=self.masks_df)
-
-            height, width = img_fp.shape
-
-            img_data = None
-            label_data = None
-            
-            print(img_fp.shape)
-            print(label.shape)
-            yield img_fp, label
-
-            # img = torch.from_numpy(img).squeeze()
+        return (image, mask, mask_id, fn)
 
 
-
-
-            # for i in range(self.num_chips_per_tile):
-            #     # Select the top left pixel of our chip randomly
-            #     x = np.random.randint(0, width-self.chip_size)
-            #     y = np.random.randint(0, height-self.chip_size)
-
-            #     # Read imagery / labels
-            #     img = None
-            #     labels = None
-
-            #     if self.windowed_sampling:
-            #         try:
-            #             img = np.rollaxis(img_fp.read(window=Window(x, y, self.chip_size, self.chip_size)), 0, 3)
-            #             print(img.shape)
-            #             if self.use_labels:
-            #                 labels = label_fp.read(window=Window(x, y, self.chip_size, self.chip_size)).squeeze()
-            #         except RasterioError:
-            #             print("WARNING: Error reading chip from file, skipping to the next chip")
-            #             continue
-            #     else:
-            #         img = img_data[y:y+self.chip_size, x:x+self.chip_size, :]
-            #         if self.use_labels:
-            #             labels = label_data[y:y+self.chip_size, x:x+self.chip_size]
-
-            #     # Check for no data
-            #     if self.nodata_check is not None:
-            #         if self.use_labels:
-            #             skip_chip = self.nodata_check(img, labels)
-            #         else:
-            #             skip_chip = self.nodata_check(img)
-
-            #         if skip_chip: # The current chip has been identified as invalid by the `nodata_check(...)` method
-            #             num_skipped_chips += 1
-            #             continue
-
-            #     # Transform the imagery
-            #     if self.image_transform is not None:
-            #         if self.groups is None:
-            #             img = self.image_transform(img)
-            #         else:
-            #             img = self.image_transform(img, group)
-            #     else:
-            #         img = torch.from_numpy(img).squeeze()
-
-            #     # Transform the labels
-            #     if self.use_labels:
-            #         if self.label_transform is not None:
-            #             if self.groups is None:
-            #                 labels = self.label_transform(labels)
-            #             else:
-            #                 labels = self.label_transform(labels, group)
-            #         else:
-            #             labels = torch.from_numpy(labels).squeeze()
-
-
-            #     # Note, that img should be a torch "Double" type (i.e. a np.float32) and labels should be a torch "Long" type (i.e. np.int64)
-            #     if self.use_labels:
-            #         yield img, labels
-            #     else:
-            #         yield img
-
-
-            if num_skipped_chips>0 and self.verbose:
-                print("We skipped %d chips on %s" % (img_fn))
-
-    def __iter__(self):
-        if self.verbose:
-            print("Creating a new StreamingGeospatialDataset iterator")
-        return iter(self.stream_chips())
-
-
-
-class StreamingStandardDataset(IterableDataset):
+class AirbusShipPatchDataset(Dataset):
     
-    def __init__(self, imagery_fns,masks_df, chip_size=768, num_chips_per_tile=1, image_transform=None, label_transform=None, nodata_check=None, verbose=False):
+    """
+        Returns 8 256x256 patches per tile
+    """
 
-        self.fns = imagery_fns
-        self.masks_df = masks_df
+    def __init__(self, fn, data_root_dir, large_chip_size=362, chip_size=256, 
+                 transform=joint_transform, rotation_augmentation=False, give_mask_id=True):
+        df = pd.read_csv(fn)
+        
+        self.image_fns = [
+            os.path.join(data_root_dir, "train_v2/", fn)
+            for fn in df["0"].values
+        ]
 
+        self.mask_fns = [
+            os.path.join(data_root_dir, "train_v2_masks/", fn.replace(".jpg", ".png"))
+            for fn in df["0"].values
+        ]
+
+        self.mask_id_fns = [
+            os.path.join(data_root_dir, "train_v2_mask_ids/", fn.replace(".jpg", ".png"))
+            for fn in df["0"].values
+        ]
+        
+        self.mask_exists = [
+            os.path.exists(fn)
+            for fn in self.mask_fns
+        ]
+        
+        self.transform = transform
+        self.rotation_augmentation = rotation_augmentation
+        self.large_chip_size = large_chip_size
         self.chip_size = chip_size
-        self.num_chips_per_tile = num_chips_per_tile
+        self.give_mask_id = give_mask_id
 
-        self.image_transform = image_transform
-        self.label_transform = label_transform
-        self.nodata_check = nodata_check
+    def __len__(self):
+        return len(self.image_fns)
 
-        self.verbose = verbose
+    def __getitem__(self, idx):
 
-        if self.verbose:
-            print("Constructed StreamingStandardDataset")
-
-    def stream_tile_fns(self):
-        worker_info = torch.utils.data.get_worker_info()
-        if worker_info is None: # In this case we are not loading through a DataLoader with multiple workers
-            worker_id = 0
-            num_workers = 1
+        img_fn, mask_fn, mask_id_fn = self.image_fns[idx], self.mask_fns[idx], self.mask_id_fns[idx]
+        fn = os.path.basename(img_fn)
+        
+        
+        image = imread(img_fn)
+        if self.mask_exists[idx]:
+            mask = imread(mask_fn)
+            mask_id = imread(mask_id_fn)
         else:
-            worker_id = worker_info.id
-            num_workers = worker_info.num_workers
+            mask = np.zeros((768, 768), dtype=np.uint8)
+            mask_id = np.zeros((768, 768), dtype=np.uint8)
+        
+        res = []
+        res_masks = []
+        
+        width, height, channel = image.shape
+        
+        # Extract patches
+        for patch_i in range(8):
+            # Select the top left pixel of our chip randomly
+            x = np.random.randint(0, width-self.large_chip_size)
+            y = np.random.randint(0, height-self.large_chip_size)
 
-        # We only want to shuffle the order we traverse the files if we are the first worker (else, every worker will shuffle the files...)
-        if worker_id == 0:
-            np.random.shuffle(self.fns) # in place
-        # NOTE: A warning, when different workers are created they will all have the same numpy random seed, however will have different torch random seeds. If you want to use numpy random functions, seed appropriately.
-        #seed = torch.randint(low=0,high=2**32-1,size=(1,)).item()
-        #np.random.seed(seed) # when different workers spawn, they have the same numpy random seed...
+            # Read imagery / labels
+            p_img = None
+            p_mask = None
+            p_mask_id = None
 
-        if self.verbose:
-            print("Creating a filename stream for worker %d" % (worker_id))
-
-        # This logic splits up the list of filenames into `num_workers` chunks. Each worker will recieve ceil(num_filenames / num_workers) filenames to generate chips from. If the number of workers doesn't divide the number of filenames evenly then the last worker will have fewer filenames.
-        N = len(self.fns)
-        num_files_per_worker = int(np.ceil(N / num_workers))
-        lower_idx = worker_id * num_files_per_worker
-        upper_idx = min(N, (worker_id+1) * num_files_per_worker)
-        for idx in range(lower_idx, upper_idx):
-
-            img_fn = self.fns[idx]
-
-            if self.verbose:
-                print("Worker %d, yielding file %d" % (worker_id, idx))
-
-            yield (img_fn)
-
-    def stream_chips(self):
-        for img_fn in self.stream_tile_fns():
-            num_skipped_chips = 0
-
-            img_fp = imread(img_fn)
-            label = get_mask(img_fn, df=self.masks_df)
-
-            height, width = img_fp.shape
-
-            img_data = None
-            label_data = None
+            p_img = image[y:y+self.large_chip_size, x:x+self.large_chip_size, :]
+            p_mask = mask[y:y+self.large_chip_size, x:x+self.large_chip_size]
+            p_mask_id = mask_id[y:y+self.large_chip_size, x:x+self.large_chip_size]
             
-            print(img_fp.shape)
-            print(label.shape)
-            yield img_fp, label
+            if self.give_mask_id == True:
+                if self.rotation_augmentation:
+                    p_img, p_mask_id = self.transform(p_img, p_mask_id, rotation_augmentation=True)
+                else:
+                    p_img, p_mask_id = self.transform(p_img, p_mask_id, rotation_augmentation=False)
 
-            # img = torch.from_numpy(img).squeeze()
+                assert p_img.shape == (3,256,256) and p_mask_id.shape == (256,256)
 
+                res.append(p_img)
+                res_masks.append(p_mask_id)
+            else:
+                if self.rotation_augmentation:
+                    p_img, p_mask = self.transform(p_img, p_mask, rotation_augmentation=True)
+                else:
+                    p_img, p_mask = self.transform(p_img, p_mask, rotation_augmentation=False)
 
+                assert p_img.shape == (3,256,256) and p_mask.shape == (256,256)
 
-            if num_skipped_chips>0 and self.verbose:
-                print("We skipped %d chips on %s" % (img_fn))
+                res.append(p_img)
+                res_masks.append(p_mask)
 
-    def __iter__(self):
-        if self.verbose:
-            print("Creating a new StreamingStandardDataset iterator")
-        return iter(self.stream_chips())
+        return (image, mask, mask_id, fn, res, res_masks)

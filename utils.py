@@ -5,6 +5,13 @@ import itertools
 import numpy as np
 from torch.autograd import Variable
 import torch
+import scipy.ndimage
+from skimage.io import imread, imsave
+from skimage.transform import rotate
+
+import pandas as pd
+
+
 
 def ntuple(n):
     """ Ensure that input has the correct number of elements """
@@ -180,30 +187,70 @@ def apply_transform(filter, interp_vars, filters_size, old_bilinear_interpolatio
 
     return rotated_filter
 
+##################################
 
 
-if __name__ == '__main__':
-    """ Test rotation of filter """
-    import torch.nn as nn
-    from torch.nn import functional as F
-    from torch.nn.parameter import Parameter
-    import math
-    from utils import *
+# ref: https://www.kaggle.com/paulorzp/run-length-encode-and-decode
+def rle_decode(mask_rle, shape=(768, 768)):
+    '''
+    mask_rle: run-length as string formated (start length)
+    shape: (height,width) of array to return 
+    Returns numpy array, 1 - mask, 0 - background
 
-    ks = [9,9] #Kernel size
-    angle = 45
-    interp_vars = get_filter_rotation_transforms(ks, angle)
+    '''
+    s = mask_rle.split()
+    starts, lengths = [np.asarray(x, dtype=int)
+                       for x in (s[0:][::2], s[1:][::2])]
+    starts -= 1
+    ends = starts + lengths
+    img = np.zeros(shape[0]*shape[1], dtype=np.uint8)
+    for lo, hi in zip(starts, ends):
+        img[lo:hi] = 1
+    return img.reshape(shape).T  # Needed to align to RLE directions
 
-    w = Variable(torch.ones([1,1]+ks))
-    #w[:,:,4,:] = 5
-    w[:, :, :, 4] = 5
-    #w[:,:,0,0] = -1
+def get_mask(img_id, df):
+    shape = (768,768)
+    img = np.zeros(shape[0]*shape[1], dtype=np.uint8)
+    masks = df.loc[img_id]['EncodedPixels']
+    if(type(masks) == float): return img.reshape(shape)
+    if(type(masks) == str): masks = [masks]
+    for mask in masks:
+        s = mask.split()
+        for i in range(len(s)//2):
+            start = int(s[2*i]) - 1
+            length = int(s[2*i+1])
+            img[start:start+length] = 1
+    return img.reshape(shape).T
 
+NUM_WORKERS = 8
+NUM_CHIPS_PER_TILE = 8
+CHIP_SIZE = 256
+LARGE_CHIP_SIZE = int(np.ceil(CHIP_SIZE * np.sqrt(2)))
+CROP_POINT = (LARGE_CHIP_SIZE - CHIP_SIZE) // 2
 
-    print(w)
-    for angle in [0,90,45,180,65,10]:
-        print(angle,'degrees')
-        print(apply_transform(w, get_filter_rotation_transforms(ks, angle)[:-1], ks,old_bilinear_interpolation=True) * Variable(get_filter_rotation_transforms(ks, angle)[-1]))
-        print('Difference', torch.sum(apply_transform(w, get_filter_rotation_transforms(ks, angle)[:-1], ks,old_bilinear_interpolation=False) * Variable( get_filter_rotation_transforms(ks, angle)[-1]) - apply_transform(w, get_filter_rotation_transforms(ks, angle)[:-1], ks,old_bilinear_interpolation=True) * Variable(get_filter_rotation_transforms(ks, angle)[-1])))
+PADDING = 32
+assert PADDING % 2 == 0
+HALF_PADDING = PADDING//2
+CHIP_STRIDE = CHIP_SIZE - PADDING
 
+def joint_transform(img, labels, rotation_augmentation=True):
+    if rotation_augmentation:
+        rotate_amount = np.random.randint(0,360)
+        img = rotate(img, rotate_amount)
+        labels = rotate(labels, rotate_amount, order=0)
+        labels = (labels * 255).astype(np.uint8)
 
+        img = img[CROP_POINT:CROP_POINT+CHIP_SIZE, CROP_POINT:CROP_POINT+CHIP_SIZE]
+        labels = labels[CROP_POINT:CROP_POINT+CHIP_SIZE, CROP_POINT:CROP_POINT+CHIP_SIZE]
+    else:
+        img = img / 255.0
+
+        img = img[CROP_POINT:CROP_POINT+CHIP_SIZE, CROP_POINT:CROP_POINT+CHIP_SIZE]
+        labels = labels[CROP_POINT:CROP_POINT+CHIP_SIZE, CROP_POINT:CROP_POINT+CHIP_SIZE]
+        
+    img = np.rollaxis(img, 2, 0).astype(np.float32)
+    img = torch.from_numpy(img)
+    labels = labels.astype(np.int64)
+    labels = torch.from_numpy(labels)
+
+    return img, labels
