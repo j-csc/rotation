@@ -5,6 +5,9 @@ import itertools
 import numpy as np
 from torch.autograd import Variable
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 import scipy.ndimage
 from skimage.io import imread, imsave
 from skimage.transform import rotate
@@ -233,7 +236,7 @@ assert PADDING % 2 == 0
 HALF_PADDING = PADDING//2
 CHIP_STRIDE = CHIP_SIZE - PADDING
 
-def joint_transform(img, labels, rotation_augmentation=True):
+def joint_transform(img, labels, rotation_augmentation=True, preprocessing_fn=None):
     if rotation_augmentation:
         rotate_amount = np.random.randint(0,360)
         img = rotate(img, rotate_amount)
@@ -247,10 +250,73 @@ def joint_transform(img, labels, rotation_augmentation=True):
 
         img = img[CROP_POINT:CROP_POINT+CHIP_SIZE, CROP_POINT:CROP_POINT+CHIP_SIZE]
         labels = labels[CROP_POINT:CROP_POINT+CHIP_SIZE, CROP_POINT:CROP_POINT+CHIP_SIZE]
-        
+    
+    if preprocessing_fn != None:
+        img = preprocessing_fn(img)
+
     img = np.rollaxis(img, 2, 0).astype(np.float32)
     img = torch.from_numpy(img)
     labels = labels.astype(np.int64)
+    labels = np.expand_dims(labels, axis=0)
     labels = torch.from_numpy(labels)
 
     return img, labels
+
+def dice_loss(input, target):
+    input = torch.sigmoid(input)
+    smooth = 1.0
+
+    iflat = input.view(-1)
+    tflat = target.view(-1)
+    intersection = (iflat * tflat).sum()
+    
+    return ((2.0 * intersection + smooth) / (iflat.sum() + tflat.sum() + smooth))
+
+def mixed_loss(input, target):
+    if not (target.size() == input.size()):
+        raise ValueError("Target size ({}) must be the same as input size ({})"
+                            .format(target.size(), input.size()))
+    
+    alpha = 10.0
+    gamma = 2.0
+        
+    max_val = (-input).clamp(min=0)
+    focal_loss = input - input * target + max_val + \
+        ((-max_val).exp() + (-input - max_val).exp()).log()
+
+    invprobs = F.logsigmoid(-input * (target * 2.0 - 1.0))
+    focal_loss = (invprobs * gamma).exp() * focal_loss
+    focal_loss = focal_loss.mean()
+
+    loss = alpha*focal_loss - torch.log(dice_loss(input, target))
+
+    return loss.mean()
+
+# class FocalLoss(nn.Module):
+#     def __init__(self, gamma):
+#         super().__init__()
+#         self.gamma = gamma
+        
+#     def forward(self, input, target):
+#         if not (target.size() == input.size()):
+#             raise ValueError("Target size ({}) must be the same as input size ({})"
+#                              .format(target.size(), input.size()))
+
+#         max_val = (-input).clamp(min=0)
+#         loss = input - input * target + max_val + \
+#             ((-max_val).exp() + (-input - max_val).exp()).log()
+
+#         invprobs = F.logsigmoid(-input * (target * 2.0 - 1.0))
+#         loss = (invprobs * self.gamma).exp() * loss
+        
+#         return loss.mean()
+
+# class MixedLoss(nn.Module):
+#     def __init__(self, alpha, gamma):
+#         super().__init__()
+#         self.alpha = alpha
+#         self.focal = FocalLoss(gamma)
+        
+#     def forward(self, input, target):
+#         loss = self.alpha*self.focal(input, target) - torch.log(dice_loss(input, target))
+#         return loss.mean()

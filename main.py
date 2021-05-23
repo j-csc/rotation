@@ -1,66 +1,123 @@
-import sys
-import os
-import time
-import datetime
-import argparse
-import copy
+import sys,os,time
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
-from dataloader import AirbusShipDataset
+import scipy.ndimage
+from skimage.io import imread, imsave
+from skimage.transform import rotate
 
 import torch
-torch.backends.cudnn.deterministic = False
-torch.backends.cudnn.benchmark = True
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+
+from utils import LARGE_CHIP_SIZE, CHIP_SIZE, NUM_WORKERS, joint_transform, mixed_loss
+from tqdm import tqdm
+
+from dataloader import AirbusShipPatchDataset, AirbusShipDataset
+from streaming_dataloader import StreamingShipDataset, StreamingShipValTestDataset
+import joblib
+
+import rasterio
+import fiona
+import shapely.geometry
+import cv2
+import rasterio.features
+
+import segmentation_models_pytorch as smp
 
 def main():
-  train_dataset = AirbusShipDataset("./data/train_df.csv", "./data")
-  (image, mask, mask_id, fn) = train_dataset[131961]
 
-  print(image, mask, mask_id, fn)
+  ENCODER = 'resnet34'
+  ENCODER_WEIGHTS = 'imagenet'
+  ACTIVATION = 'sigmoid'
+  # DEVICE = 'cuda'
+  BATCH_SIZE=8
+
+  device = torch.device("cuda:%d" % 2)
+
+  model = smp.Unet(
+    encoder_name=ENCODER,
+    encoder_weights=ENCODER_WEIGHTS,
+    activation=ACTIVATION
+  )
+
+  preprocessing_fn = smp.encoders.get_preprocessing_fn(ENCODER, ENCODER_WEIGHTS)
+
+  # Train Loader
+
+  streaming_train_dataset = StreamingShipDataset("./data/train_df.csv", "./data", 
+    large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, transform=joint_transform, preprocessing_fn=preprocessing_fn,
+    rotation_augmentation=True, give_mask_id=False, only_ships=True)
+
+  train_loader = DataLoader(dataset=streaming_train_dataset, batch_size = BATCH_SIZE, num_workers=4)
+
+  # Val Loader
+
+  streaming_val_dataset = StreamingShipValTestDataset("./data/val_df.csv", "./data/train_v2/", 
+    large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, transform=joint_transform, preprocessing_fn=preprocessing_fn,
+    rotation_augmentation=True, only_ships=False)
+
+  valid_loader = DataLoader(dataset=streaming_val_dataset, batch_size = BATCH_SIZE, num_workers=4)
+
+  # Model params
+
+  # loss = smp.utils.losses.DiceLoss()
+
+  loss = MixedLoss(10.0, 2.0)
+
+  # loss = mixed_loss()
+
+  metrics = [
+    smp.utils.metrics.IoU(threshold=0.5),
+  ]
+
+  optimizer = torch.optim.Adam([ 
+      dict(params=model.parameters(), lr=1e-2),
+  ])
+
+  # create epoch runners 
+  # it is a simple loop of iterating over dataloader`s samples
+  train_epoch = smp.utils.train.TrainEpoch(
+      model, 
+      loss=loss, 
+      metrics=metrics, 
+      optimizer=optimizer,
+      device=device,
+      verbose=True,
+  )
+
+  valid_epoch = smp.utils.train.ValidEpoch(
+      model, 
+      loss=loss, 
+      metrics=metrics, 
+      device=device,
+      verbose=True,
+  )
+
+
+  # train model for 40 epochs
+
+  max_score = 0
+
+  for i in range(0, 10):
+    print('\nEpoch: {}'.format(i))
+    train_logs = train_epoch.run(train_loader)
+    valid_logs = valid_epoch.run(valid_loader)
+    
+    # do something (save model, change lr, etc.)
+    if max_score < valid_logs['iou_score']:
+        max_score = valid_logs['iou_score']
+        torch.save(model, './best_model_augmented.pth')
+        print('Model saved!')
+        
+    if i == 25:
+        optimizer.param_groups[0]['lr'] = 1e-5
+        print('Decrease decoder learning rate to 1e-5!')
 
   pass
 
 
 main()
-
-
-
-
-# PATH = './'
-# TRAIN = 'train_v2/'
-# TEST = 'test_v2/'
-# SEGMENTATION = 'train_ship_segmentations_v2.csv'
-# exclude_list = ['6384c3e78.jpg','13703f040.jpg', '14715c06d.jpg',  '33e0ff2d5.jpg',
-#                 '4d4e09f2a.jpg', '877691df8.jpg', '8b909bb20.jpg', 'a8d99130e.jpg', 
-#                 'ad55c3143.jpg', 'c8260c541.jpg', 'd6c7f17c7.jpg', 'dc3e7c901.jpg',
-#                 'e44dffe88.jpg', 'ef87bad36.jpg', 'f083256d8.jpg'] 
-
-# tr_arr = np.array(pd.read_csv('train_df.csv')['0'].reset_index(drop=True))
-# val_arr = np.array(pd.read_csv('val_df.csv')['0'].reset_index(drop=True))
-# test_arr = np.array(pd.read_csv('test_df.csv')['0'].reset_index(drop=True))
-
-# for el in exclude_list:
-#   if(el in tr_arr): tr_arr.remove(el)
-#   if(el in val_arr): val_arr.remove(el)
-#   if(el in test_arr): test_arr.remove(el)
-
-# segmentation_df = pd.read_csv(os.path.join(PATH, SEGMENTATION)).set_index('ImageId')
-
-# tr_n = tr_arr
-# val_n = val_arr
-# test_n = test_arr
-
-
-# # IF CUT_EMPTY
-# def cut_empty(names):
-#   return [name for name in names 
-#           if(type(segmentation_df.loc[name]['EncodedPixels']) != float)]
-
-# tr_n = cut_empty(tr_n)
-# val_n = cut_empty(val_n)
-# test_n = cut_empty(test_n)
