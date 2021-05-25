@@ -141,7 +141,7 @@ class StreamingShipDataset(IterableDataset):
                     else:
                         p_img, p_mask_id = self.transform(p_img, p_mask_id, rotation_augmentation=False)
 
-                    assert p_img.shape == (3,256,256) and p_mask_id.shape == (256,256)
+                    # assert p_img.shape == (3,256,256) and p_mask_id.shape == (256,256)
 
                     yield orig, img_fn, p_img, p_mask_id
 
@@ -152,19 +152,32 @@ class StreamingShipDataset(IterableDataset):
                         else:
                             p_img, p_mask_id = self.transform(p_img, p_mask_id, rotation_augmentation=False)
 
-                        assert p_img.shape == (3,256,256) and p_mask_id.shape == (1,256,256)
+                        # assert p_img.shape == (3,256,256) and p_mask_id.shape == (1,256,256)
 
                         yield p_img, p_mask_id
                         
                     else:
+
+                        # THIS IS WHAT GETS CALLED DURING MODEL TRAINING
                         if self.rotation_augmentation:
                             p_img, p_mask = self.transform(p_img, p_mask, rotation_augmentation=True, preprocessing_fn=self.preprocessing_fn)
                         else:
                             p_img, p_mask = self.transform(p_img, p_mask, rotation_augmentation=False)
 
-                        assert p_img.shape == (3,256,256) and p_mask.shape == (1,256,256)
+                        # assert p_img.shape == (3,256,256) and p_mask.shape == (1,256,256)
+                        # print(np.min(p_img), np.max(p_img))
 
-                        
+                        if self.preprocessing_fn != None:
+                            p_img = self.preprocessing_fn(p_img)
+
+                        p_img = np.rollaxis(p_img, 2, 0).astype(np.float32)
+                        p_img = torch.from_numpy(p_img).squeeze()
+
+                        p_mask = p_mask.astype(np.int64)
+                        p_mask = torch.from_numpy(p_mask).unsqueeze(0)
+
+                        # print((p_img).min(), (p_img).max())
+
                         yield p_img, p_mask
                 
 
@@ -279,8 +292,19 @@ class StreamingShipValTestDataset(IterableDataset):
                 else:
                     p_img, p_mask = self.transform(p_img, p_mask, rotation_augmentation=False)
 
+                # assert p_img.shape == (3,256,256) and p_mask.shape == (1,256,256)
+                # print(np.min(p_img), np.max(p_img))
 
-                assert p_img.shape == (3,256,256) and p_mask.shape == (1,256,256)
+                if self.preprocessing_fn != None:
+                    p_img = self.preprocessing_fn(p_img)
+
+                p_img = np.rollaxis(p_img, 2, 0).astype(np.float32)
+                p_img = torch.from_numpy(p_img).squeeze()
+
+                p_mask = p_mask.astype(np.int64)
+                p_mask = torch.from_numpy(p_mask).unsqueeze(0)
+
+                # print((p_img).min(), (p_img).max())
 
                 yield p_img, p_mask
 

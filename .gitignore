@@ -1,3 +1,6 @@
 .ipynb_checkpoints/
 data/
 reference/
+aug_models/
+non_aug_models/
+best_model*

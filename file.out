@@ -1,0 +1,70 @@
+Training logs - Non-augmented
+
+Epoch: 0
+train: 34376it [57:25,  9.98it/s, MixedLoss - 9.365, iou_score - 0.2988]
+valid: 8184it [04:51, 28.09it/s, MixedLoss - 14.74, iou_score - 0.1868]
+Model saved!
+
+Epoch: 1
+train: 34376it [1:01:31,  9.31it/s, MixedLoss - 9.35, iou_score - 0.3094]
+valid: 8184it [03:37, 37.58it/s, MixedLoss - 13.85, iou_score - 0.2218]
+Model saved!
+
+Epoch: 2
+train: 34376it [52:42, 10.87it/s, MixedLoss - 9.346, iou_score - 0.3187]
+valid: 8184it [03:26, 39.67it/s, MixedLoss - 13.49, iou_score - 0.2923]
+Model saved!
+
+Epoch: 3
+train: 34376it [51:35, 11.10it/s, MixedLoss - 9.344, iou_score - 0.3244]
+valid: 8184it [03:52, 35.17it/s, MixedLoss - 13.22, iou_score - 0.4603]
+Model saved!
+Decrease decoder learning rate to 1e-3!
+
+Epoch: 4
+train: 34376it [52:45, 10.86it/s, MixedLoss - 9.343, iou_score - 0.3259]
+valid: 8184it [03:45, 36.33it/s, MixedLoss - 13.2, iou_score - 0.3966]
+
+Epoch: 5
+train: 34376it [59:34,  9.62it/s, MixedLoss - 9.342, iou_score - 0.3235]
+valid: 8184it [03:58, 34.26it/s, MixedLoss - 13.19, iou_score - 0.3946]
+Decrease decoder learning rate to 1e-5!
+
+Epoch: 6
+train: 34376it [55:40, 10.29it/s, MixedLoss - 9.335, iou_score - 0.3304]
+valid: 8184it [04:00, 34.08it/s, MixedLoss - 13.2, iou_score - 0.3984]
+
+Epoch: 7
+train: 34376it [1:03:03,  9.08it/s, MixedLoss - 9.333, iou_score - 0.3406]
+valid: 8184it [04:20, 31.42it/s, MixedLoss - 13.2, iou_score - 0.4051]
+
+Epoch: 8
+train: 34376it [54:21, 10.54it/s, MixedLoss - 9.332, iou_score - 0.339]
+valid: 8184it [03:36, 37.81it/s, MixedLoss - 13.2, iou_score - 0.4081]
+
+Epoch: 9
+train: 34376it [53:39, 10.68it/s, MixedLoss - 9.331, iou_score - 0.3393]
+valid: 8184it [04:07, 33.11it/s, MixedLoss - 13.2, iou_score - 0.4114]
+(ai4e) jason@caisgpu-1:~/rotation$ ls
+ best_model_non_aug.pth                 README.md
+ data                                   reference
+ dataloader.py                         'Rosetta Plots.ipynb'
+ Dataloader_test.ipynb                  streaming_dataloader.py
+'Figures - Histogram of angles.ipynb'   test.ipynb
+ layers_2D.py                          'Test model.ipynb'
+ main.py                                Untitled.ipynb
+ non_aug_models                         utils.py
+ __pycache__
+(ai4e) jason@caisgpu-1:~/rotation$ clear
+(ai4e) jason@caisgpu-1:~/rotation$ ls
+ best_model_non_aug.pth                 README.md
+ data                                   reference
+ dataloader.py                         'Rosetta Plots.ipynb'
+ Dataloader_test.ipynb                  streaming_dataloader.py
+'Figures - Histogram of angles.ipynb'   test.ipynb
+ layers_2D.py                          'Test model.ipynb'
+ main.py                                Untitled.ipynb
+ non_aug_models                         utils.py
+ __pycache__
+(ai4e) jason@caisgpu-1:~/rotation$ tmux capture-pane -pS -1000000 > file.out
+

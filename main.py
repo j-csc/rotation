@@ -13,7 +13,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-from utils import LARGE_CHIP_SIZE, CHIP_SIZE, NUM_WORKERS, joint_transform, mixed_loss
+from utils import LARGE_CHIP_SIZE, CHIP_SIZE, MixedLoss, NUM_WORKERS, joint_transform, mixed_loss
 from tqdm import tqdm
 
 from dataloader import AirbusShipPatchDataset, AirbusShipDataset
@@ -33,15 +33,16 @@ def main():
   ENCODER = 'resnet34'
   ENCODER_WEIGHTS = 'imagenet'
   ACTIVATION = 'sigmoid'
-  # DEVICE = 'cuda'
+  CLASSES=1
   BATCH_SIZE=8
 
-  device = torch.device("cuda:%d" % 2)
+  device = torch.device("cuda:%d" % 0)
 
   model = smp.Unet(
     encoder_name=ENCODER,
     encoder_weights=ENCODER_WEIGHTS,
-    activation=ACTIVATION
+    activation=ACTIVATION,
+    classes=CLASSES
   )
 
   preprocessing_fn = smp.encoders.get_preprocessing_fn(ENCODER, ENCODER_WEIGHTS)
@@ -62,21 +63,31 @@ def main():
 
   valid_loader = DataLoader(dataset=streaming_val_dataset, batch_size = BATCH_SIZE, num_workers=4)
 
+  # Test Loader
+
+  streaming_test_dataset = StreamingShipValTestDataset("./data/test_df.csv", "./data/train_v2/", 
+    large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, transform=joint_transform, preprocessing_fn=preprocessing_fn,
+    rotation_augmentation=False, only_ships=False)
+
+  test_loader = DataLoader(dataset=streaming_test_dataset, batch_size = BATCH_SIZE, num_workers=4)
+
   # Model params
 
   # loss = smp.utils.losses.DiceLoss()
 
   loss = MixedLoss(10.0, 2.0)
-
-  # loss = mixed_loss()
+  loss.__name__ = "MixedLoss"
 
   metrics = [
     smp.utils.metrics.IoU(threshold=0.5),
+    # smp.utils.metrics.Dice()
   ]
 
-  optimizer = torch.optim.Adam([ 
-      dict(params=model.parameters(), lr=1e-2),
-  ])
+  optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, amsgrad=True)
+
+  # optimizer = torch.optim.Adam([ 
+  #     dict(params=model.parameters(), lr=1e-3),
+  # ])
 
   # create epoch runners 
   # it is a simple loop of iterating over dataloader`s samples
@@ -97,6 +108,10 @@ def main():
       verbose=True,
   )
 
+  # train_logs = train_epoch.run(train_loader)
+
+  # torch.save(model, './test_model.pth')
+
 
   # train model for 40 epochs
 
@@ -107,15 +122,21 @@ def main():
     train_logs = train_epoch.run(train_loader)
     valid_logs = valid_epoch.run(valid_loader)
     
+    torch.save(model, f'./aug_models/model_aug_{i}.pth')
+
     # do something (save model, change lr, etc.)
     if max_score < valid_logs['iou_score']:
-        max_score = valid_logs['iou_score']
-        torch.save(model, './best_model_augmented.pth')
-        print('Model saved!')
+      max_score = valid_logs['iou_score']
+      torch.save(model, './best_model_aug.pth')
+      print('Model saved!')
+
+    if i == 3:
+      optimizer.param_groups[0]['lr'] = 1e-3
+      print('Decrease decoder learning rate to 1e-3!')
         
-    if i == 25:
-        optimizer.param_groups[0]['lr'] = 1e-5
-        print('Decrease decoder learning rate to 1e-5!')
+    if i == 5:
+      optimizer.param_groups[0]['lr'] = 1e-5
+      print('Decrease decoder learning rate to 1e-5!')
 
   pass
 
