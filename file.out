@@ -45,26 +45,3 @@ valid: 8184it [03:36, 37.81it/s, MixedLoss - 13.2, iou_score - 0.4081]
 Epoch: 9
 train: 34376it [53:39, 10.68it/s, MixedLoss - 9.331, iou_score - 0.3393]
 valid: 8184it [04:07, 33.11it/s, MixedLoss - 13.2, iou_score - 0.4114]
-(ai4e) jason@caisgpu-1:~/rotation$ ls
- best_model_non_aug.pth                 README.md
- data                                   reference
- dataloader.py                         'Rosetta Plots.ipynb'
- Dataloader_test.ipynb                  streaming_dataloader.py
-'Figures - Histogram of angles.ipynb'   test.ipynb
- layers_2D.py                          'Test model.ipynb'
- main.py                                Untitled.ipynb
- non_aug_models                         utils.py
- __pycache__
-(ai4e) jason@caisgpu-1:~/rotation$ clear
-(ai4e) jason@caisgpu-1:~/rotation$ ls
- best_model_non_aug.pth                 README.md
- data                                   reference
- dataloader.py                         'Rosetta Plots.ipynb'
- Dataloader_test.ipynb                  streaming_dataloader.py
-'Figures - Histogram of angles.ipynb'   test.ipynb
- layers_2D.py                          'Test model.ipynb'
- main.py                                Untitled.ipynb
- non_aug_models                         utils.py
- __pycache__
-(ai4e) jason@caisgpu-1:~/rotation$ tmux capture-pane -pS -1000000 > file.out
-

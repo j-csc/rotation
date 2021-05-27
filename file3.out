@@ -1,0 +1,105 @@
+(base) jason@caisgpu-1:~/rotation$ conda active ai4e
+
+CommandNotFoundError: No command 'conda active'.
+Did you mean 'conda activate'?
+
+(base) jason@caisgpu-1:~/rotation$ conda activate ai4e
+(ai4e) jason@caisgpu-1:~/rotation$ clear
+(ai4e) jason@caisgpu-1:~/rotation$ python3 main.py
+
+
+Epoch: 0
+train: 34376it [53:31, 10.70it/s, MixedLoss - 9.381, iou_score - 0.2933]
+valid: 8184it [04:51, 28.05it/s, MixedLoss - 13.96, iou_score - 0.2222]
+Model saved!
+
+Epoch: 1
+train: 34376it [54:34, 10.50it/s, MixedLoss - 9.367, iou_score - 0.3095]
+valid: 8184it [04:56, 27.63it/s, MixedLoss - 14.06, iou_score - 0.2534]
+Model saved!
+
+Epoch: 2
+train: 34376it [55:35, 10.31it/s, MixedLoss - 9.363, iou_score - 0.3132]
+valid: 8184it [04:59, 27.37it/s, MixedLoss - 13.45, iou_score - 0.2951]
+Model saved!
+
+Epoch: 3
+train: 34376it [56:29, 10.14it/s, MixedLoss - 9.361, iou_score - 0.3202]
+valid: 8184it [05:00, 27.20it/s, MixedLoss - 13.21, iou_score - 0.3752]
+Model saved!
+Decrease decoder learning rate to 1e-3!
+
+Epoch: 4
+train: 34376it [1:03:03,  9.09it/s, MixedLoss - 9.361, iou_score - 0.32]
+valid: 8184it [05:00, 27.26it/s, MixedLoss - 13.3, iou_score - 0.3344]
+
+Epoch: 5
+train: 34376it [58:23,  9.81it/s, MixedLoss - 9.359, iou_score - 0.3218]
+valid: 8184it [04:59, 27.34it/s, MixedLoss - 13.87, iou_score - 0.295]
+Decrease decoder learning rate to 1e-5!
+
+Epoch: 6
+train: 34376it [1:01:06,  9.38it/s, MixedLoss - 9.352, iou_score - 0.3249]
+valid: 8184it [05:00, 27.23it/s, MixedLoss - 13.4, iou_score - 0.3379]
+
+Epoch: 7
+train: 34376it [1:01:38,  9.29it/s, MixedLoss - 9.35, iou_score - 0.3282]
+valid: 8184it [05:01, 27.15it/s, MixedLoss - 13.39, iou_score - 0.3355]
+
+Epoch: 8
+train: 34376it [1:03:01,  9.09it/s, MixedLoss - 9.349, iou_score - 0.3271]
+valid: 8184it [05:04, 26.85it/s, MixedLoss - 13.4, iou_score - 0.3364]
+
+Epoch: 9
+train: 34376it [58:24,  9.81it/s, MixedLoss - 9.349, iou_score - 0.3286]
+valid: 8184it [05:01, 27.10it/s, MixedLoss - 13.42, iou_score - 0.3378]
+(ai4e) jason@caisgpu-1:~/rotation$ tmux capture-pane -pS -1000000 > file2.out
+(ai4e) jason@caisgpu-1:~/rotation$ python3 main.py
+
+
+Epoch: 0
+train: 34376it [55:17, 10.36it/s, MixedLoss - 9.379, iou_score - 0.2956]
+valid: 8184it [05:13, 26.11it/s, MixedLoss - 14.22, iou_score - 0.2226]
+Model saved!
+
+Epoch: 1
+train: 34376it [59:06,  9.69it/s, MixedLoss - 9.364, iou_score - 0.3046]
+valid: 8184it [05:00, 27.24it/s, MixedLoss - 13.87, iou_score - 0.2607]
+Model saved!
+
+Epoch: 2
+train: 34376it [57:47,  9.91it/s, MixedLoss - 9.361, iou_score - 0.3172]
+valid: 8184it [04:53, 27.93it/s, MixedLoss - 14.39, iou_score - 0.2341]
+
+Epoch: 3
+train: 34376it [55:01, 10.41it/s, MixedLoss - 9.359, iou_score - 0.3135]
+valid: 8184it [04:56, 27.57it/s, MixedLoss - 13.37, iou_score - 0.4269]
+Model saved!
+Decrease decoder learning rate to 1e-3!
+
+Epoch: 4
+train: 34376it [54:26, 10.52it/s, MixedLoss - 9.36, iou_score - 0.3108]
+valid: 8184it [04:49, 28.31it/s, MixedLoss - 13.52, iou_score - 0.2736]
+
+Epoch: 5
+train: 34376it [1:00:05,  9.53it/s, MixedLoss - 9.359, iou_score - 0.3146]
+valid: 8184it [05:04, 26.88it/s, MixedLoss - 13.28, iou_score - 0.3909]
+Decrease decoder learning rate to 1e-5!
+
+Epoch: 6
+train: 34376it [1:06:42,  8.59it/s, MixedLoss - 9.351, iou_score - 0.3274]
+valid: 8184it [05:03, 27.00it/s, MixedLoss - 13.31, iou_score - 0.3399]
+
+Epoch: 7
+train: 34376it [1:08:29,  8.37it/s, MixedLoss - 9.349, iou_score - 0.3289]
+valid: 8184it [05:02, 27.04it/s, MixedLoss - 13.32, iou_score - 0.3206]
+
+Epoch: 8
+train: 34376it [1:06:14,  8.65it/s, MixedLoss - 9.348, iou_score - 0.3281]
+valid: 8184it [05:31, 24.72it/s, MixedLoss - 13.33, iou_score - 0.3161]
+
+Epoch: 9
+train: 34376it [54:50, 10.45it/s, MixedLoss - 9.348, iou_score - 0.3302]
+valid: 8184it [04:54, 27.81it/s, MixedLoss - 13.33, iou_score - 0.3147]
+(ai4e) jason@caisgpu-1:~/rotation$ tmux capture-pane -pS -1000000 > file3.out
+

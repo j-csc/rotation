@@ -65,29 +65,22 @@ def main():
 
   # Test Loader
 
-  streaming_test_dataset = StreamingShipValTestDataset("./data/test_df.csv", "./data/train_v2/", 
-    large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, transform=joint_transform, preprocessing_fn=preprocessing_fn,
-    rotation_augmentation=False, only_ships=False)
+  # streaming_test_dataset = StreamingShipValTestDataset("./data/test_df.csv", "./data/train_v2/", 
+  #   large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, transform=joint_transform, preprocessing_fn=preprocessing_fn,
+  #   rotation_augmentation=False, only_ships=False)
 
-  test_loader = DataLoader(dataset=streaming_test_dataset, batch_size = BATCH_SIZE, num_workers=4)
+  # test_loader = DataLoader(dataset=streaming_test_dataset, batch_size = BATCH_SIZE, num_workers=4)
 
   # Model params
-
-  # loss = smp.utils.losses.DiceLoss()
 
   loss = MixedLoss(10.0, 2.0)
   loss.__name__ = "MixedLoss"
 
   metrics = [
     smp.utils.metrics.IoU(threshold=0.5),
-    # smp.utils.metrics.Dice()
   ]
 
   optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, amsgrad=True)
-
-  # optimizer = torch.optim.Adam([ 
-  #     dict(params=model.parameters(), lr=1e-3),
-  # ])
 
   # create epoch runners 
   # it is a simple loop of iterating over dataloader`s samples
@@ -108,11 +101,6 @@ def main():
       verbose=True,
   )
 
-  # train_logs = train_epoch.run(train_loader)
-
-  # torch.save(model, './test_model.pth')
-
-
   # train model for 40 epochs
 
   max_score = 0
@@ -122,17 +110,17 @@ def main():
     train_logs = train_epoch.run(train_loader)
     valid_logs = valid_epoch.run(valid_loader)
     
-    torch.save(model, f'./aug_models/model_aug_{i}.pth')
+    torch.save(model, f'./aug_models_new/model_aug_{i}.pth')
 
     # do something (save model, change lr, etc.)
     if max_score < valid_logs['iou_score']:
       max_score = valid_logs['iou_score']
-      torch.save(model, './best_model_aug.pth')
+      torch.save(model, './best_model_aug_new.pth')
       print('Model saved!')
 
-    if i == 3:
-      optimizer.param_groups[0]['lr'] = 1e-3
-      print('Decrease decoder learning rate to 1e-3!')
+    # if i == 3:
+    #   optimizer.param_groups[0]['lr'] = 1e-3
+    #   print('Decrease decoder learning rate to 1e-3!')
         
     if i == 5:
       optimizer.param_groups[0]['lr'] = 1e-5

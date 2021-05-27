@@ -68,7 +68,4 @@ train: 34376it [58:24,  9.81it/s, Mix
 edLoss - 9.349, iou_score - 0.3286]
 valid: 8184it [05:01, 27.10it/s, Mixe
 dLoss - 13.42, iou_score - 0.3378]
-(ai4e) jason@caisgpu-1:~/rotation$ tm
-ux capture-pane -pS -1000000 > file2.
-out
 
