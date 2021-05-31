@@ -30,6 +30,8 @@ class StreamingShipDataset(IterableDataset):
 
         for el in exclude_list:
             if(el in tr_n): tr_n.remove(el)
+
+        # print(len(tr_n))
         
         if only_ships:
             def cut_empty(names):
@@ -37,6 +39,8 @@ class StreamingShipDataset(IterableDataset):
                         if(type(segmentation_df.loc[name]['EncodedPixels']) != float)]
 
             tr_n = cut_empty(tr_n)
+
+        # print(len(tr_n))
 
         self.num_patches = num_patches
         self.chip_size = chip_size

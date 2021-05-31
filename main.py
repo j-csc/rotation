@@ -36,16 +36,20 @@ def main():
   CLASSES=1
   BATCH_SIZE=8
 
-  device = torch.device("cuda:%d" % 0)
+  device = torch.device("cuda:%d" % 1)
 
   model = smp.Unet(
     encoder_name=ENCODER,
-    encoder_weights=ENCODER_WEIGHTS,
+    encoder_weights=None,
     activation=ACTIVATION,
     classes=CLASSES
   )
 
+  model = model.to(device)
+
   preprocessing_fn = smp.encoders.get_preprocessing_fn(ENCODER, ENCODER_WEIGHTS)
+
+  # preprocessing_fn = None
 
   # Train Loader
 
@@ -58,18 +62,10 @@ def main():
   # Val Loader
 
   streaming_val_dataset = StreamingShipValTestDataset("./data/val_df.csv", "./data/train_v2/", 
-    large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, transform=joint_transform, preprocessing_fn=preprocessing_fn,
-    rotation_augmentation=True, only_ships=False)
+    large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, transform=joint_transform, preprocessing_fn=None,
+    rotation_augmentation=True, only_ships=True)
 
   valid_loader = DataLoader(dataset=streaming_val_dataset, batch_size = BATCH_SIZE, num_workers=4)
-
-  # Test Loader
-
-  # streaming_test_dataset = StreamingShipValTestDataset("./data/test_df.csv", "./data/train_v2/", 
-  #   large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, transform=joint_transform, preprocessing_fn=preprocessing_fn,
-  #   rotation_augmentation=False, only_ships=False)
-
-  # test_loader = DataLoader(dataset=streaming_test_dataset, batch_size = BATCH_SIZE, num_workers=4)
 
   # Model params
 
@@ -101,8 +97,6 @@ def main():
       verbose=True,
   )
 
-  # train model for 40 epochs
-
   max_score = 0
 
   for i in range(0, 10):
@@ -110,23 +104,17 @@ def main():
     train_logs = train_epoch.run(train_loader)
     valid_logs = valid_epoch.run(valid_loader)
     
-    torch.save(model, f'./aug_models_new/model_aug_{i}.pth')
+    torch.save(model, f'./aug_models_new_new/model_aug_{i}.pth')
 
     # do something (save model, change lr, etc.)
     if max_score < valid_logs['iou_score']:
       max_score = valid_logs['iou_score']
-      torch.save(model, './best_model_aug_new.pth')
+      torch.save(model, './best_model_aug_nn.pth')
       print('Model saved!')
-
-    # if i == 3:
-    #   optimizer.param_groups[0]['lr'] = 1e-3
-    #   print('Decrease decoder learning rate to 1e-3!')
         
     if i == 5:
       optimizer.param_groups[0]['lr'] = 1e-5
       print('Decrease decoder learning rate to 1e-5!')
-
-  pass
 
 
 main()

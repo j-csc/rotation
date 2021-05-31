@@ -2,6 +2,7 @@ import sys,os,time
 
 import numpy as np
 import pandas as pd
+import glob
 import matplotlib.pyplot as plt
 
 import scipy.ndimage
@@ -28,13 +29,50 @@ import rasterio.features
 
 import segmentation_models_pytorch as smp
 
+def IoU(pred, targs):
+    pred = (pred>0).float()
+    intersection = (pred*targs).sum()
+    return intersection / ((pred+targs).sum() - intersection + 1.0)
+
+class ShipTestDataset(Dataset):
+
+    def __init__(self, file_path, transform=None):
+        self.file_path = file_path
+        self.image_fns = glob.glob(self.file_path + "img/*")
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.image_fns)
+
+    def __getitem__(self, idx):
+        
+        fn = self.image_fns[idx].split('/')[-1]
+        
+        mask_fn = os.path.join(self.file_path, "mask",fn.replace("jpg", "png"))
+        
+        # Read image
+        img = imread(self.image_fns[idx])
+        mask = imread(mask_fn)
+        
+        if self.transform != None:
+            img = self.transform(img)
+        else:
+            img = img / 255.0
+            
+        p_img = np.rollaxis(img, 2, 0).astype(np.float32)
+        p_img = torch.from_numpy(p_img).squeeze()
+
+        p_mask = mask.astype(np.int64)
+        p_mask = torch.from_numpy(p_mask).unsqueeze(0)
+        
+        return p_img, p_mask
 
 def main():
     ENCODER = 'resnet34'
     ENCODER_WEIGHTS = 'imagenet'
     ACTIVATION = 'sigmoid'
     CLASSES=1
-    BATCH_SIZE=1
+    BATCH_SIZE=8
 
     device = torch.device("cuda:%d" % 0)
 
@@ -54,31 +92,71 @@ def main():
         smp.utils.metrics.IoU(threshold=0.5),
     ]
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, amsgrad=True)
+    device = torch.device("cuda:%d" % 0)
+
+    aug_model = torch.load('./best_model_aug.pth')
+    aug_model = aug_model.to(device)
+
+    non_aug_model = torch.load('./best_model_non_aug.pth')
+    non_aug_model = non_aug_model.to(device)
+
+    test_epoch_aug_Unet = smp.utils.train.ValidEpoch(
+        aug_model, 
+        loss=loss, 
+        metrics=metrics, 
+        device=device,
+        verbose=True,
+    )
+
+    test_epoch_non_aug_Unet = smp.utils.train.ValidEpoch(
+        non_aug_model, 
+        loss=loss, 
+        metrics=metrics, 
+        device=device,
+        verbose=True,
+    )
+
+    aug_test_ds = ShipTestDataset('./data/test_set_rotation_aug/', transform=preprocessing_fn)
+    aug_test_loader = DataLoader(dataset=aug_test_ds, batch_size = 1, num_workers=1)
+
+    test_ds = ShipTestDataset('./data/test_set/', transform=preprocessing_fn)
+    test_loader = DataLoader(dataset=test_ds, batch_size = 1, num_workers=1)
+
+    sum_iou = 0
+    count = 0
+
+    for i, (img, mask) in tqdm(enumerate(aug_test_loader)):        
+        if mask.sum() != 0:
+            pred = non_aug_model(img.cuda())
+
+            pred = pred.detach().cpu().double()
+            
+            pred[pred >= 0.5] = 1
+            pred[pred < 0.5] =0
+            
+            sum_iou += (IoU(pred.squeeze(), mask.squeeze()))
+            count += 1
+
+        if i != 0 and i % 10000 == 0:
+            print(sum_iou / count)
+
+    # print("Vanilla Unet, Aug Test")
+    print(sum_iou, count, (sum_iou / count))
+
+    # print("Aug Unet, Aug Test")
+    # aa_log = test_epoch_aug_Unet.run(aug_test_loader)
+
+    # print("Aug Unet, Vanilla Test")
+    # av_log = test_epoch_aug_Unet.run(test_loader)
     
-    # streaming_train_dataset = StreamingShipDataset("./data/train_df.csv", "./data", 
-    #     large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, transform=joint_transform, preprocessing_fn=preprocessing_fn,
-    #     rotation_augmentation=True, give_mask_id=False, only_ships=True)
+    # print("Vanilla Unet, Aug Test")
+    # test_epoch_non_aug_Unet.run(aug_test_loader)
     
-    # train_loader = DataLoader(dataset=streaming_train_dataset, batch_size = 8, num_workers=4)
-    streaming_test_dataset = StreamingShipValTestDataset("./data/test_df.csv", "./data/train_v2/", 
-        large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, transform=joint_transform, preprocessing_fn=preprocessing_fn,
-        rotation_augmentation=False, only_ships=True)
+    # print("Vanilla Unet, Vanilla Test")
+    # test_epoch_non_aug_Unet.run(test_loader)
 
-    streaming_test_aug_dataset = StreamingShipValTestDataset("./data/test_df.csv", "./data/train_v2/", 
-        large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, transform=joint_transform, preprocessing_fn=preprocessing_fn,
-        rotation_augmentation=True, only_ships=True)
 
-    test_loader = DataLoader(dataset=streaming_test_dataset, batch_size = 8, num_workers=4)
 
-    test_aug_loader = DataLoader(dataset=streaming_test_aug_dataset, batch_size = 8, num_workers=4)
-
-    # Num img, mask
-    for i, (img, mask) in enumerate(test_aug_loader):
-        if i == 15: break
-        # print(img.min(), img.max())
-
-    pass
 
 
 main()
