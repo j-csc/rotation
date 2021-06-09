@@ -55,15 +55,15 @@ def main():
 
   streaming_train_dataset = StreamingShipDataset("./data/train_df.csv", "./data", 
     large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, transform=joint_transform, preprocessing_fn=preprocessing_fn,
-    rotation_augmentation=True, give_mask_id=False, only_ships=True)
+    rotation_augmentation=False, give_mask_id=False, only_ships=True)
 
   train_loader = DataLoader(dataset=streaming_train_dataset, batch_size = BATCH_SIZE, num_workers=4)
 
   # Val Loader
 
   streaming_val_dataset = StreamingShipValTestDataset("./data/val_df.csv", "./data/train_v2/", 
-    large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, transform=joint_transform, preprocessing_fn=None,
-    rotation_augmentation=True, only_ships=True)
+    large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, transform=joint_transform, preprocessing_fn=preprocessing_fn,
+    rotation_augmentation=False, only_ships=True)
 
   valid_loader = DataLoader(dataset=streaming_val_dataset, batch_size = BATCH_SIZE, num_workers=4)
 
@@ -103,13 +103,12 @@ def main():
     print('\nEpoch: {}'.format(i))
     train_logs = train_epoch.run(train_loader)
     valid_logs = valid_epoch.run(valid_loader)
-    
-    torch.save(model, f'./aug_models_new_new/model_aug_{i}.pth')
+    torch.save(model, f'./old_models/non_aug_model_it3/model_non_aug_{i}.pth')
 
     # do something (save model, change lr, etc.)
     if max_score < valid_logs['iou_score']:
       max_score = valid_logs['iou_score']
-      torch.save(model, './best_model_aug_nn.pth')
+      torch.save(model, './best_model_non_aug_it3.pth')
       print('Model saved!')
         
     if i == 5:

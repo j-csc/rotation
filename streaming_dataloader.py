@@ -50,6 +50,7 @@ class StreamingShipDataset(IterableDataset):
         self.give_mask_id = give_mask_id
         self.test = test
         self.verbose = verbose
+        self.total_num_patches = num_patches * len(tr_n)
         
         self.image_fns = [
             os.path.join(data_root_dir, "train_v2/", fn)
@@ -161,7 +162,6 @@ class StreamingShipDataset(IterableDataset):
                         yield p_img, p_mask_id
                         
                     else:
-
                         # THIS IS WHAT GETS CALLED DURING MODEL TRAINING
                         if self.rotation_augmentation:
                             p_img, p_mask = self.transform(p_img, p_mask, rotation_augmentation=True)
@@ -229,6 +229,7 @@ class StreamingShipValTestDataset(IterableDataset):
         self.rotation_augmentation = rotation_augmentation
         self.verbose = verbose
         self.preprocessing_fn = preprocessing_fn
+        self.total_num_patches = num_patches * len(tr_n)
                         
         self.transform = transform
 
@@ -304,11 +305,10 @@ class StreamingShipValTestDataset(IterableDataset):
                     p_img = self.preprocessing_fn(p_img)
                     # print('after {}, {}'.format(p_img.min(), p_img.max()))
 
-
                 p_img = np.rollaxis(p_img, 2, 0).astype(np.float32)
                 p_img = torch.from_numpy(p_img).squeeze()
 
-                p_mask = p_mask.astype(np.int64)
+                p_mask = p_mask.astype(np.float32)
                 p_mask = torch.from_numpy(p_mask).unsqueeze(0)
 
 

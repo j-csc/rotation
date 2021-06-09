@@ -192,7 +192,7 @@ class Vector2Angle(nn.Module):
         return angle
 
 class VectorBatchNorm(nn.Module):
-    def     __init__(self, num_features, eps=1e-5, momentum=0.5, affine=True):
+    def __init__(self, num_features, eps=1e-5, momentum=0.5, affine=True):
 
         super(VectorBatchNorm, self).__init__()
         self.num_features = num_features
