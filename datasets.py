@@ -8,6 +8,7 @@ import torch
 from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
 import albumentations as albu
+import glob
 
 from utils import rle_decode, get_mask, joint_transform
 
@@ -59,7 +60,6 @@ class AirbusShipDataset(Dataset):
         #    sample = self.transform(sample)
 
         return (image, mask, mask_id, fn)
-
 
 class AirbusShipPatchDataset(Dataset):
     
@@ -156,3 +156,37 @@ class AirbusShipPatchDataset(Dataset):
                 res_masks.append(p_mask)
 
         return (image, mask, mask_id, fn, res, res_masks)
+
+class ShipTestDataset(Dataset):
+
+    def __init__(self, file_path, transform=None):
+        self.file_path = file_path
+        self.image_fns = glob.glob(self.file_path + "img/*")
+        self.mask_fns = glob.glob(self.file_path + "mask/*")
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.image_fns)
+
+    def __getitem__(self, idx):
+        
+        fn = self.image_fns[idx].split('/')[-1]
+        
+        mask_fn = os.path.join(self.file_path, "mask",fn.replace("jpg", "png"))
+        
+        # Read image
+        img = imread(self.image_fns[idx])
+        mask = imread(mask_fn)
+        
+        if self.transform != None:
+            img = self.transform(img)
+        else:
+            img = img / 255.0
+            
+        p_img = np.rollaxis(img, 2, 0).astype(np.float32)
+        p_img = torch.from_numpy(p_img).squeeze()
+
+        p_mask = mask.astype(np.int64)
+        p_mask = torch.from_numpy(p_mask).unsqueeze(0)
+
+        return p_img, p_mask

@@ -29,7 +29,6 @@ import rasterio.features
 import segmentation_models_pytorch as smp
 
 def main():
-
   ENCODER = 'resnet34'
   ENCODER_WEIGHTS = 'imagenet'
   ACTIVATION = 'sigmoid'
@@ -48,8 +47,6 @@ def main():
   model = model.to(device)
 
   preprocessing_fn = smp.encoders.get_preprocessing_fn(ENCODER, ENCODER_WEIGHTS)
-
-  # preprocessing_fn = None
 
   # Train Loader
 
@@ -79,7 +76,6 @@ def main():
   optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, amsgrad=True)
 
   # create epoch runners 
-  # it is a simple loop of iterating over dataloader`s samples
   train_epoch = smp.utils.train.TrainEpoch(
       model, 
       loss=loss, 

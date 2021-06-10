@@ -194,7 +194,6 @@ class StreamingShipDataset(IterableDataset):
             print("Creating a new StreamingGeospatialDataset iterator")
         return iter(self.stream_chips())
 
-
 class StreamingShipValTestDataset(IterableDataset):
     
     def __init__(self, fn, data_root_dir, num_patches=8, chip_size=256, large_chip_size=362, 
