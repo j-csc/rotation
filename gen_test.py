@@ -153,8 +153,27 @@ class GenDataset(IterableDataset):
             print("Creating a new StreamingGeospatialDataset iterator")
         return iter(self.stream_chips())
 
+
+parser = argparse.ArgumentParser(description='Rotbias pre-generating test set script')
+parser.add_argument('--input_img_ids', type=str, required=True, help='The path for list of input image ids (csv).')
+parser.add_argument('--input_img_dir', type=str, required=True, help='The path for stored images')
+parser.add_argument('--imsave_dir', type=str, required=True, help='Path to the save test images.')
+parser.add_argument('--mask_imsave_dir', type=str, required=True, help='Path to save test masks.')
+parser.add_argument('--gpu', type=int, default=0, help='The ID of the GPU to use')
+
+args = parser.parse_args()
+
+"""
+Sample input:
+
+python3 gen_test.py --input_img_ids ./data/test_df.csv --input_img_dir ./data/train_v2/ 
+    --imsave_dir /home/jason/rotation/data/test_set/img/ --mask_imsave_dir /home/jason/rotation/data/test_set/mask/
+    --gpu 0
+
+"""
+
 def main():
-    gen_test = GenDataset("./data/test_df.csv", "./data/train_v2/",
+    gen_test = GenDataset(args.input_img_ids, args.input_img_dir,
         num_patches=18, large_chip_size=LARGE_CHIP_SIZE, chip_size=CHIP_SIZE, 
         transform=joint_transform, preprocessing_fn=None,
         rotation_augmentation=False, only_ships=True)
@@ -173,8 +192,8 @@ def main():
             im.save(f'/home/jason/rotation/data/test_set/img/{i}.jpg')
             mask_im.save(f'/home/jason/rotation/data/test_set/mask/{i}.png')
         
-        im.save(f'/home/jason/rotation/data/test_set_rotation_aug/img/{i}.jpg')
-        mask_im.save(f'/home/jason/rotation/data/test_set_rotation_aug/mask/{i}.png')
+        im.save(f'{args.imsave_dir}{i}.jpg')
+        mask_im.save(f'{args.mask_imsave_dir}{i}.png')
 
     pass
 

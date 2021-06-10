@@ -40,8 +40,23 @@ def IoU(pred, targs):
     return intersection / ((pred+targs).sum() - intersection + 1.0)
 
 
+parser = argparse.ArgumentParser(description='Rotbias baseline test script')
+parser.add_argument('--input_fn', type=str, required=True, help='The path for testing dataset.')
+parser.add_argument('--input_aug_fn', type=str, required=True, help='The path for TTA (pre-gen) dataset. Use gen_test.py.')
+parser.add_argument('--model_fn', type=str, required=True, help='Path to the model file to use.')
+parser.add_argument('--model_aug_fn', type=str, required=True, help='Path to the aug model file to use.')
+parser.add_argument('--gpu', type=int, default=0, help='The ID of the GPU to use')
+
+args = parser.parse_args()
+
+""" 
+Sample input: 
+
+python3 run_test.py --input_fn ./data/test_set_rotation_aug/ --input_aug_fn ./data/test_set/ 
+    --model_fn ./old_models/best_model_non_aug_it3.pth --model_aug_fn ./old_models/best_model_aug_nn.pth --gpu 0
+"""
 def main():
-    device = torch.device("cuda:%d" % 0)
+    device = torch.device("cuda:%d" % args.gpu)
     loss = MixedLoss(10.0, 2.0)
     loss.__name__ = "MixedLoss"
 
