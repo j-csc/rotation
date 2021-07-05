@@ -25,49 +25,49 @@ class RotEqNet(nn.Module):
     def __init__(self):
         super(RotEqNet, self).__init__()
 
-		self.main = nn.Sequential(
-
+        self.main = nn.Sequential(
+            
             # Layer 1
-            x = RotConv(3, 64, [3, 3], 1, 1, n_angles=6, mode=1)(x)
-            x = VectorMaxPool(2)(x)
-            x = VectorBatchNorm(64)(x)
+            RotConv(3, 64, [3, 3], 1, 1, n_angles=6, mode=1),
+            VectorMaxPool(2),
+            VectorBatchNorm(64),
 
             # Layer 2
-            x = RotConv(64, 128, [3, 3], 1, 1, n_angles=6, mode=2)(x)
-            x = VectorMaxPool(2)(x)
-            x = VectorBatchNorm(128)(x)
+            RotConv(64, 128, [3, 3], 1, 1, n_angles=6, mode=2),
+            VectorMaxPool(2),
+            VectorBatchNorm(128),
 
             # Layer 3
-            x = RotConv(128, 256, [3, 3], 1, 1, n_angles=6, mode=2)(x)
-            x = VectorMaxPool(2)(x)
-            x = VectorBatchNorm(256)(x)
+            RotConv(128, 256, [3, 3], 1, 1, n_angles=6, mode=2),
+            VectorMaxPool(2),
+            VectorBatchNorm(256),
 
             # Layer 4
-            x = RotConv(256, 512, [3, 3], 1, 1, n_angles=6, mode=2)(x)
-            x = VectorMaxPool(2)(x)
-            x = VectorBatchNorm(512)(x)
+            RotConv(256, 512, [3, 3], 1, 1, n_angles=6, mode=2),
+            VectorMaxPool(2),
+            VectorBatchNorm(512),
 
-            # Upsampling Layer
-            x = VectorUpsampling(size=256)(x)
-            x = Vector2Magnitude()(x)
-
+            # UpSampling Layer
+            VectorUpsampling(size=256),
+            Vector2Magnitude(),
+            
             # FC1
-            x = nn.Conv2d(512, 4096, 1)(x)
-            x = nn.BatchNorm2d(4096)(x)
-            x = nn.ReLU()(x)
-
+            nn.Conv2d(512, 4096, 1),  
+            nn.BatchNorm2d(4096),
+            nn.ReLU(),
+            
             # FC2
-            x = nn.Dropout2d(0.7)(x)
-            x = nn.Conv2d(4096, 1, 1)(x)
-    )
+            nn.Dropout2d(0.7),
+            nn.Conv2d(4096, 1, 1)
+        )
 
     def forward(self, x):
         x = self.main(x)
         return x
 
-
 def main():
-    testNet = RotEqNet()
+    net = RotEqNet()
+    criterion = nn.BCELoss()
+    
 
-if '__name__' == "__main__":
-    main()
+main()
