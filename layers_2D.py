@@ -19,7 +19,7 @@ from utils import  *
 class RotConv(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size, stride=1,
-                 padding=0, dilation=1, n_angles = 8, mode=1, fcn=False):
+                 padding=0, dilation=1, n_angles = 8, mode=1):
         super(RotConv, self).__init__()
 
         kernel_size = ntuple(2)(kernel_size)
@@ -35,7 +35,6 @@ class RotConv(nn.Module):
         self.dilation = dilation
 
         self.mode = mode
-        self.fcn = fcn
 
         #Angles
         self.angles = np.linspace(0,360,n_angles, endpoint=False)
@@ -122,20 +121,16 @@ class RotConv(nn.Module):
                 outputs.append(  (u_out + v_out).unsqueeze(-1) )
                 
 
+        # Get the maximum direction (Orientation Pooling)
+        strength, max_ind = torch.max(torch.cat(outputs, -1), -1)
 
-        if (self.fcn == False):
-            # Get the maximum direction (Orientation Pooling)
-            strength, max_ind = torch.max(torch.cat(outputs, -1), -1)
-
-            # Convert from polar representation q
-            angle_map = max_ind.float() * (360. / len(self.angles) / 180. * np.pi)
-            u = F.relu(strength) * torch.cos(angle_map)
-            v = F.relu(strength) * torch.sin(angle_map)
+        # Convert from polar representation q
+        angle_map = max_ind.float() * (360. / len(self.angles) / 180. * np.pi)
+        u = F.relu(strength) * torch.cos(angle_map)
+        v = F.relu(strength) * torch.sin(angle_map)
 
 
-            return u, v
-        else:
-            return outputs
+        return u, v
 
 class VectorMaxPool(nn.Module):
     def __init__(self,  kernel_size, stride=None, padding=0, dilation=1,
