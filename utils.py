@@ -11,8 +11,11 @@ import torch.nn.functional as F
 import scipy.ndimage
 from skimage.io import imread, imsave
 from skimage.transform import rotate
+import sys
+from tqdm import tqdm
 
 import pandas as pd
+import time
 
 
 
@@ -311,3 +314,54 @@ class MixedLoss(nn.Module):
     def forward(self, input, target):
         loss = self.alpha*self.focal(input, target) - torch.log(dice_loss(input, target))
         return loss.mean()
+
+
+# CREDIT: github.com/calebrob6/dfc2021-msd-baselline
+def fit(model, device, data_loader, num_batches, optimizer, criterion, epoch, memo=""):
+    model.train()
+
+    losses = []
+    tic = time.time()
+
+    for batch_idx, (data, targets) in tqdm(enumerate(data_loader), total=num_batches, file=sys.stdout):
+        data = data.to(device)
+        targets = targets.to(device)
+
+        optimizer.zero_grad()
+        outputs = model(data)
+        loss = criterion(outputs, targets)
+        losses.append(loss.item())
+        loss.backward()
+        optimizer.step()
+
+    avg_loss = np.mean(losses)
+    print('[{}] Training Epoch: {}\t Time elapsed: {:.2f} seconds\t Loss: {:.2f}'.format(
+        memo, epoch, time.time() - tic, avg_loss), end=""
+    )
+    print("")
+
+    return [avg_loss]
+
+def evaluate(model,device,data_loader,num_batches, criterion,epoch,memo=""):
+    model.evaluate()
+    losses = []
+    tic = time.time()
+
+    for batch_idx, (data,targets) in tqdm(enumerate(data_loader), total=num_batches, file=sys.stdout):
+        data = data.to(device)
+        targets = targets.to(device)
+
+        with torch.no_grad():
+            outputs = model(data)
+            loss = criterion(outputs, targets)
+            losses.append(loss.item())
+        
+        avg_loss = np.mean(losses)
+        
+        print('[{}] Validation Epoch: {}\t Time elapsed: {:.2f} seconds\t Loss: {:.2f}'.format(
+            memo, epoch, time.time() - tic, avg_loss), end=""
+        )
+    return [avg_loss]
+
+def count_parameters(model):
+    return(sum(p.numel() for p in model.parameters() if p.requires_grad))

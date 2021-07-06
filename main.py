@@ -16,9 +16,11 @@ from torch.utils.data import Dataset, DataLoader
 from utils import LARGE_CHIP_SIZE, CHIP_SIZE, MixedLoss, NUM_WORKERS, joint_transform, mixed_loss
 from tqdm import tqdm
 
-from dataloader import AirbusShipPatchDataset, AirbusShipDataset
+# from dataloader import AirbusShipPatchDataset, AirbusShipDataset
 from streaming_dataloader import StreamingShipDataset, StreamingShipValTestDataset
 import joblib
+
+from utils import count_parameters
 
 import rasterio
 import fiona
@@ -45,6 +47,8 @@ def main():
   )
 
   model = model.to(device)
+
+  print("Model has %d paramaters" % (count_parameters(model)))
 
   preprocessing_fn = smp.encoders.get_preprocessing_fn(ENCODER, ENCODER_WEIGHTS)
 
