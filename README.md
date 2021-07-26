@@ -25,6 +25,20 @@ To download datasets:
 kaggle competitions download -c airbus-ship-detection
 ```
 
+
+## Project description 
+
+|           File          |                                   Description                                  |
+|:-----------------------:|:------------------------------------------------------------------------------:|
+|       datasets.py       |                       Pytorch Dataset for loading images                       |
+|       gen_test.py       |              Data generation for non-aug and aug train test split              |
+|       run_test.py       |                                   Get metrics                                  |
+| streaming_dataloader.py |            Contain IterableDataset for both Drone and Ship dataset             |
+|         utils.py        | Loss functions and helper functions for transforming data, rle decoding etc.)  |
+|       ship_main.py      |                       Main script for ship model training                      |
+|      drone_main.py      |                      Main script for drone model training                      |
+|        notebooks/       |                       Misc jupyter notebooks for data viz                      |
+
 ## Usage
 
 1. To generate cropped 256x256 test patches (Augmented and Non-Augmented)
@@ -36,8 +50,12 @@ python3 gen_test.py --input_img_ids INPUT_IMG_IDS_CSV --input_img_dir INPUT_IMG_
 
 2. Model training
 
-```python 
-python3 main.py
+```python
+# For Airbus Ship segmentation dataset
+python3 ship_main.py
+
+# For Drone segmentation dataset
+python3 drone_main.py
 ```
 
 3. Obtain test metrics (Augmented and Non-Augmented)
